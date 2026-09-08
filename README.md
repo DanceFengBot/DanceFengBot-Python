@@ -15,50 +15,50 @@
 DanceFengBot-Python/
 ├── bot.py                          # 入口文件
 ├── pyproject.toml                  # 依赖与 NoneBot 配置
-├── .env / .env.dev / .env.prod     # NoneBot 配置
+├── .env                            # NoneBot 配置
 ├── DcConfig
-    │  ApiKeys.yml
-    │  OfficialMusicIds.json
-    │  TokenIds.json
-    │  UserTokens.json
-    │  
-    └─Images
-        │
-        ├─Cover
-        │  │  default.png
-        │  │
-        │  ├─CustomImage
-        │  │      1011.jpg
-        │  │      1023.jpg
-        │  │      1026.jpg ...
-        │  │      default.png
-        │  │
-        │  └─OfficialImage
-        │          101.jpg
-        │          106.jpg
-        │          115.jpg ...
-        │          default.png
-        │
-        ├─UserRatioImage
-        │      A.png
-        │      AP.png
-        │      B.png
-        │      Background1.png
-        │      Background2.png
-        │      Background3.png
-        │      C.png
-        │      Card1.png
-        │      Card2.png
-        │      Card3.png
-        │      D.png
-        │      result.png
-        │      S.png
-        │      SS.png
-        │      SSS.png
-        │
-        └─UserInfoImage
-                Background1.png
-                Background2.png
+│    │  ApiKeys.yml
+│    │  OfficialMusicIds.json
+│    │  TokenIds.json
+│    │  UserTokens.json
+│    │  
+│    └─Images
+│        │
+│        ├─Cover
+│        │  │  default.png
+│        │  │
+│        │  ├─CustomImage
+│        │  │      1011.jpg
+│        │  │      1023.jpg
+│        │  │      1026.jpg ...
+│        │  │      default.png
+│        │  │
+│        │  └─OfficialImage
+│        │          101.jpg
+│        │          106.jpg
+│        │          115.jpg ...
+│        │          default.png
+│        │
+│        ├─UserRatioImage
+│        │      A.png
+│        │      AP.png
+│        │      B.png
+│        │      Background1.png
+│        │      Background2.png
+│        │      Background3.png
+│        │      C.png
+│        │      Card1.png
+│        │      Card2.png
+│        │      Card3.png
+│        │      D.png
+│        │      result.png
+│        │      S.png
+│        │      SS.png
+│        │      SSS.png
+│        │
+│        └─UserInfoImage
+│                Background1.png
+│                Background2.png
 └── src/plugins/DanceFengBot-Python/  # 插件源码
     ├── __init__.py                 # 插件入口（Token 加载 / 定时刷新 / 加好友）
     ├── config.py                   # DcConfig 路径与 ApiKeys 解析
