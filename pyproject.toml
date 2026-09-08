@@ -1,0 +1,45 @@
+[project]
+name = "DanceFengBot-Python"
+version = "0.1.0"
+description = "DanceFengBot-Python (NoneBot2 + OneBot V11)"
+readme = "README.md"
+requires-python = ">=3.11, <4.0"
+dependencies = [
+    "nonebot2[fastapi,httpx]>=2.5.0",
+    "nonebot-adapter-onebot>=2.4.6",
+    "nonebot-plugin-apscheduler>=0.5.0",
+    "Pillow>=10.0.0",
+    "PyYAML>=6.0",
+    "pycryptodome>=3.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyright[nodejs]",
+    "ruff",
+]
+
+[tool.nonebot]
+plugin_dirs = ["src/plugins"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "W",     # pycodestyle warnings
+    "E",     # pycodestyle errors
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+]
+ignore = [
+    "E402",    # module-import-not-at-top-of-file
+    "B008",    # function-call-in-default-argument
+]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
