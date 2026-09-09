@@ -84,6 +84,7 @@ DanceFengBot-Python/
 ```bash
 # 1. 克隆本项目到本地
 git clone https://github.com/DanceFengBot/DanceFengBot-Python.git
+
 # 2. 创建并激活虚拟环境
 cd DanceFengBot-Python
 python -m venv .venv
@@ -95,10 +96,13 @@ source .venv/bin/activate
 # 3. 安装依赖
 pip install -r ./requirements.txt
 
-# 4. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
+# 4. 下载DcConfig压缩包并解压到项目运行目录
+https://github.com/DanceFengBot/DanceFengBot/releases/download/DcConfig-20260807/DcConfig.zip
+
+# 5. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
 进入 go-cqhttp / NapCat / LLOneBot / Lagrange 的管理后台或配置文件，连接配置 选择/填写 反向Websocket / Websocket客户端 ，地址为ws://127.0.0.1:10219/onebot/v11/ws，无Token
 
-# 5 . 运行
+# 6 . 运行
 python bot.py
 ```
 
