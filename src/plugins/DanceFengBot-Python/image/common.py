@@ -165,14 +165,14 @@ def draw_music_grid(
             drawer.font(TITLE_FONT, BLACK).draw_text(
                 info.name, 160 + dx2, 624 + dy2, TextEffect().set_max_width(220)
             )
-            drawer.font(SCORE_FONT).draw_text(str(info.score), 160 + dx2, 646 + dy2)
+            drawer.font(SCORE_FONT).draw_text(str(info.score), 160 + dx2, 662 + dy2)
             drawer.font(COMBO_FONT).draw_text(
                 f"{info.combo}\n{info.miss}\n{info.accuracy:.2f}%",
                 230 + dx2,
-                725 + dy2,
+                726 + dy2,
                 TextEffect().set_space_height(1),
             )
-            drawer.draw_text(f"> {info.ratio_int} ({diff})", 163 + dx2, 702 + dy2)
+            drawer.draw_text(f"> {info.ratio_int} ({diff})", 163 + dx2, 708 + dy2)
             drawer.font(LEVEL_FONT, WHITE).draw_text(
                 str(info.level), 17 + dx2, 747 + dy2
             )

@@ -63,42 +63,42 @@ class ImageDrawer:
     def __init__(self, image: Image.Image) -> None:
         self.image = image
         self.draw = ImageDraw.Draw(self.image)
-        self.color = BLACK
-        self.font = None
+        self._color = BLACK
+        self._font = None
 
     def set_anti_aliasing(self) -> None:
         # Pillow 文本默认抗锯齿，无需额外处理
         return None
 
     def color(self, color) -> "ImageDrawer":
-        self.color = color
+        self._color = color
         return self
 
     def font(self, font, color=None) -> "ImageDrawer":
-        self.font = font
+        self._font = font
         if color is not None:
-            self.color = color
+            self._color = color
         return self
 
     def _line_height(self) -> int:
-        if self.font is None:
+        if self._font is None:
             return 10
-        ascent, descent = self.font.getmetrics()
+        ascent, descent = self._font.getmetrics()
         return ascent + descent
 
     def _add_dots(self, text: str, max_width: int) -> str:
-        if self.font is None:
+        if self._font is None:
             return text
-        if self.draw.textlength(text, font=self.font) <= max_width:
+        if self.draw.textlength(text, font=self._font) <= max_width:
             return text
         ellipsis = "..."
-        while text and self.draw.textlength(text + ellipsis, font=self.font) > max_width:
+        while text and self.draw.textlength(text + ellipsis, font=self._font) > max_width:
             text = text[:-1]
         return text + ellipsis
 
     def draw_text(self, text: str, x: int, y: int, effect: TextEffect | None = None) -> "ImageDrawer":
         if effect is None:
-            self.draw.text((x, y), text, font=self.font, fill=self.color)
+            self.draw.text((x, y), text, font=self._font, fill=self._color)
             return self
 
         if effect.space_height is not None:
@@ -106,12 +106,12 @@ class ImageDrawer:
             for line in text.split("\n"):
                 if effect.max_width is not None:
                     line = self._add_dots(line, effect.max_width)
-                self.draw.text((x, y), line, font=self.font, fill=self.color)
+                self.draw.text((x, y), line, font=self._font, fill=self._color)
                 y += line_height + effect.space_height
         else:
             if effect.max_width is not None:
                 text = self._add_dots(text, effect.max_width)
-            self.draw.text((x, y), text, font=self.font, fill=self.color)
+            self.draw.text((x, y), text, font=self._font, fill=self._color)
         return self
 
     def draw_image(

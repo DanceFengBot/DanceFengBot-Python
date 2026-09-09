@@ -76,28 +76,30 @@ DanceFengBot-Python/
 
 ## 环境要求
 
-- **Python >= 3.11**（NoneBot2 当前依赖链 `pygtrie>=2.6` 需要 3.11+ 的 `typing.Self`）
+- **Python >= 3.11**
 - 一个支持 OneBot V11 的 QQ 实现（如 go-cqhttp / NapCat / LLOneBot / Lagrange）
 
 ## 安装与运行
 
 ```bash
-# 1. 创建并激活虚拟环境
+# 1. 克隆本项目到本地
+git clone https://github.com/DanceFengBot/DanceFengBot-Python.git
+# 2. 创建并激活虚拟环境
+cd DanceFengBot-Python
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
 # Linux/macOS
 source .venv/bin/activate
 
-# 2. 安装依赖
+# 3. 安装依赖
 pip install -r ./requirements.txt
 
-# 3. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
+# 4. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
+进入 go-cqhttp / NapCat / LLOneBot / Lagrange 的管理后台或配置文件，连接配置 选择/填写 反向Websocket / Websocket客户端 ，地址为ws://127.0.0.1:10219/onebot/v11/ws，无Token
 
-# 4. 运行
+# 5 . 运行
 python bot.py
-# 或使用 nb-cli
-nb run --reload
 ```
 
 ## 配置文件（DcConfig）
