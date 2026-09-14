@@ -81,30 +81,51 @@ DanceFengBot-Python/
 
 ## 安装与运行
 
-```bash
-# 1. 克隆本项目到本地
-git clone https://github.com/DanceFengBot/DanceFengBot-Python.git
+### 1. 克隆本项目到本地
 
-# 2. 创建并激活虚拟环境
+```
+git clone https://github.com/DanceFengBot/DanceFengBot-Python.git
+```
+
+#### 2. 创建并激活虚拟环境
+
+```
 cd DanceFengBot-Python
 python -m venv .venv
-# Windows
+```
+
+##### Windows
+```
 .venv\Scripts\activate
-# Linux/macOS
+```
+
+##### Linux/macOS
+
+```
 source .venv/bin/activate
+```
 
-# 3. 安装依赖
+#### 3. 安装依赖
+
+```
 pip install -r ./requirements.txt
+```
 
-# 4. 下载DcConfig压缩包并解压到项目运行目录
+#### 4. 下载DcConfig压缩包并解压到项目运行目录
+
+```
 https://github.com/DanceFengBot/DanceFengBot/releases/download/DcConfig-20260807/DcConfig.zip
+```
 
-# 5. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
-进入 go-cqhttp / NapCat / LLOneBot / Lagrange 的管理后台或配置文件，连接配置 选择/填写 反向Websocket / Websocket客户端 ，地址为ws://127.0.0.1:10219/onebot/v11/ws，无Token
+#### 5. 配置 OneBot 实现反向连接到本机 8080 端口（见 .env 的 HOST/PORT）
+进入 ***go-cqhttp / NapCat / LLOneBot / Lagrange*** 的管理后台或配置文件，连接配置 **选择/填写反向Websocket / Websocket客户端 **，地址为***ws://127.0.0.1:10219/onebot/v11/ws***，无Token
 
-# 6 . 运行
+#### 6 . 运行
+
+```
 python bot.py
 ```
+
 
 ## 配置文件（DcConfig）
 
@@ -151,11 +172,6 @@ gaodeMapKeys:
 
 如果想自定义模板，需要修改`Image`类的源码  
 你也可以进入[即时设计](https://js.design/f/Y3IL8R)中获取本图片模板，自行设计
-
-### 开发帮助
-
-看不懂？翻翻源码就知道了！
-
 
 ## 捐赠说明
 本项目为开源项目，接受各种形式的友情捐赠。您的支持将帮助我们持续改进和维护项目
