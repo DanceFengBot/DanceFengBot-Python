@@ -174,7 +174,7 @@ def draw_music_grid(
             )
             drawer.draw_text(f"> {info.ratio_int} ({diff})", 163 + dx2, 708 + dy2)
             drawer.font(LEVEL_FONT, WHITE).draw_text(
-                str(info.level), 17 + dx2, 747 + dy2
+                str(info.level), 17 + dx2, 753 + dy2
             )
 
 

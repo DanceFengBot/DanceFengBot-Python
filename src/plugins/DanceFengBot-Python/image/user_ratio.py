@@ -45,11 +45,11 @@ class UserRatioImage:
         avg2 = average(recent15_list)
         all_avg = (avg1 + avg2) / 2
         extra = (
-            f"上次战力：{last}\n"
-            f"B-15 战力：{avg1:.4f}\n"
-            f"R-15 战力：{avg2:.4f}\n"
-            f"平均战力：{all_avg:.5f}\n"
-            + get_ratio_comment(lv_ratio)
+                f"上次战力：{last}\n"
+                f"B-15 战力：{avg1:.4f}\n"
+                f"R-15 战力：{avg2:.4f}\n"
+                f"平均战力：{all_avg:.5f}\n"
+                + get_ratio_comment(lv_ratio)
         )
         drawer.font(INFO_FONT).color(BLACK).draw_text(
             extra, 720, 160, TextEffect().set_space_height(-6)
