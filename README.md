@@ -78,6 +78,7 @@ DanceFengBot-Python/
 
 - **Python >= 3.11**
 - 一个支持 OneBot V11 的 QQ 实现（如 go-cqhttp / NapCat / LLOneBot / Lagrange）
+- **Windows 10或Windows Server 2016及以上版本**或**2022年及以后发布的Linux发行版**
 
 ## 安装与运行
 
@@ -141,7 +142,8 @@ python bot.py
 | `TokenIds.json`     | 文件      | 用于获取二维码登录    | **手动配置** |
 | `ApiKeys.yml`       | 文件      | 用于API令牌      | **手动配置** |
 | `UserCommands.json` | 文件      | 用于保存用户信息触发指令 | **无需手动配置** |
-
+| `BlackList.json` | 文件 | 用于存放黑名单列表 | **无需手动配置** |
+| `WhiteList.json` | 文件 | 用于存放白名单列表 | **无需手动配置** |
 
 可能你会发现不管开几个标签都是一样的，可以尝试先**登录**一个二维码，再打开另一个标签页
 
@@ -179,10 +181,6 @@ gaodeMapKeys:
 <p>
     <img src="alipay.jpg" alt="alipay" width="50%" /><img src="weixin.png" alt="weixin" width="50%"  />
 </p>
-
-
-
-
 ## 一些提醒
 
 如果真的有人需要搭建，以下是一些注意事项：
