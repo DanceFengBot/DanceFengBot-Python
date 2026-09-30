@@ -19,6 +19,7 @@ from ..deps import (
     to_thread,
 )
 from ..token import TokenBuilder
+from ..utils import logger
 from ..utils.http import get_bytes_from_url
 from ..utils.tencent import qr_decode_tencent
 
@@ -30,17 +31,22 @@ dc_login = on_fullmatch(("登录", "舞立方登录"), rule=private_rule, priori
 @dc_login.handle()
 async def _dc_login(event: PrivateMessageEvent, matcher: Matcher) -> None:
     qq = str(event.user_id)
+    logger.info(f"[二维码登录] 收到登录请求：QQ={qq}")
     if qq in store.log_status:
+        logger.debug(f"[二维码登录] QQ={qq} 正在登录中，忽略重复请求")
         await matcher.finish("(´。＿。｀)不要重复登录啊喂！")
 
     builder = TokenBuilder()
     try:
         qr_url = builder.get_qrcode_url()
     except RuntimeError as e:
+        logger.error(f"[二维码登录] 获取二维码失败：{e}")
         await matcher.finish(str(e))
     qr_bytes = get_bytes_from_url(qr_url)
     if not qr_bytes:
+        logger.error(f"[二维码登录] 二维码图片下载失败：{qr_url}")
         await matcher.finish("二维码获取失败，请稍后再试")
+    logger.debug(f"[二维码登录] 二维码图片已就绪，{len(qr_bytes)} 字节，已发送给 QQ={qq}")
 
     await matcher.send(
         MessageSegment.text("🤗快用微信扫码，在五分钟内登录上吧~")
@@ -51,9 +57,11 @@ async def _dc_login(event: PrivateMessageEvent, matcher: Matcher) -> None:
     try:
         token = await to_thread(builder.get_token)
         if token is None:
+            logger.warning(f"[二维码登录] QQ={qq} 扫码超时")
             await matcher.send("超时啦~ 请重试一下吧！")
         else:
             store.user_tokens_map[qq] = token
+            logger.info(f"[二维码登录] QQ={qq} 登录成功，userId={token.user_id}")
             await matcher.send(
                 f"登录成功啦~(●'◡'●)\n你的ID是：{token.user_id}\n\n"
                 "⭐要是账号不匹配的话，重新发送登录就好了"
@@ -70,11 +78,13 @@ dc_logout = on_fullmatch("退出登录", rule=private_rule, priority=5, block=Tr
 @dc_logout.handle()
 async def _dc_logout(event: PrivateMessageEvent, matcher: Matcher) -> None:
     qq = str(event.user_id)
+    logger.debug(f"[退出登录] 收到请求：QQ={qq}")
     if qq in store.log_status:
         await matcher.finish("(´。＿。｀)你正在登录诶！登录后再试试吧")
     if qq not in store.user_tokens_map:
         await matcher.finish("舞小枫这没有过你的账号！")
     del store.user_tokens_map[qq]
+    logger.info(f"[退出登录] QQ={qq} 已删除本地 Token")
     await matcher.finish("退出登录成功！")
 
 
@@ -89,6 +99,7 @@ async def _phone_login_start(
     event: PrivateMessageEvent, matcher: Matcher, args: Message = CommandArg()
 ) -> None:
     number = args.extract_plain_text().strip()
+    logger.info(f"[手机号登录] 收到登录请求：QQ={event.user_id}")
     if not number:
         await matcher.finish(
             "格式：手机号登录 (手机号)\n例：手机号登录 100xxxx0000\n"
@@ -98,6 +109,7 @@ async def _phone_login_start(
     builder = PhoneLoginBuilder(number)
     graph = await to_thread(builder.get_graph_code)
     if not graph:
+        logger.warning("[手机号登录] 图形验证码获取失败，判定为无效手机号")
         await matcher.finish("无效的手机号！")
 
     matcher.state["builder"] = builder
@@ -116,8 +128,10 @@ async def _phone_login_graph(
     builder: PhoneLoginBuilder = matcher.state["builder"]
     text = graph_code.strip()
     if text == "取消":
+        logger.info("[手机号登录] 用户主动取消登录")
         await matcher.finish("登录已取消")
     if not await to_thread(builder.get_sms_code, text):
+        logger.warning("[手机号登录] 图形验证码校验未通过")
         await matcher.reject_arg(
             "graph_code", "图形验证码错误，重新发送\n*如需要取消登录请发送“取消”"
         )
@@ -133,14 +147,19 @@ async def _phone_login_sms(
     builder: PhoneLoginBuilder = matcher.state["builder"]
     text = sms_code.strip()
     if text == "取消":
+        logger.info("[手机号登录] 用户主动取消登录")
         await matcher.finish("登录已取消")
     token = await to_thread(builder.login, text)
     if token is None:
+        logger.warning("[手机号登录] 短信验证码校验未通过")
         await matcher.reject_arg(
             "sms_code", "验证码错误，重新发送\n*如需要取消登录请发送“取消”"
         )
 
     store.user_tokens_map[matcher.state["qq"]] = token
+    logger.info(
+        f"[手机号登录] QQ={matcher.state['qq']} 登录成功，userId={token.user_id}"
+    )
     await matcher.finish(
         f"登录成功啦~(●'◡'●)\n你的ID是：{token.user_id}\n\n"
         "⭐要是账号不匹配的话，重新登录就好了\n\n"
@@ -149,16 +168,16 @@ async def _phone_login_sms(
 
 
 # ---------------------------------------------------------------- 借号扫码登录
-borrow_group = on_command("借号", rule=group_rule, priority=5, block=True)
-borrow_user = on_command("借号", rule=private_rule, priority=5, block=True)
+# borrow_group = on_command("借号", rule=group_rule, priority=5, block=True)
+# borrow_user = on_command("借号", rule=private_rule, priority=5, block=True)
 
 
-@borrow_group.handle()
+# @borrow_group.handle()
 async def _borrow_group(matcher: Matcher) -> None:
     await matcher.finish("私聊才能借号！")
 
 
-@borrow_user.handle()
+# @borrow_user.handle()
 async def _borrow_user_start(
     event: PrivateMessageEvent, matcher: Matcher, args: Message = CommandArg()
 ) -> None:
@@ -181,7 +200,7 @@ async def _borrow_user_start(
     )
 
 
-@borrow_user.got("qr")
+# @borrow_user.got("qr")
 async def _borrow_user_qr(matcher: Matcher, msg: Message = Arg("qr")) -> None:
     token = matcher.state["token"]
     images = [seg for seg in msg if seg.type == "image"]
@@ -200,10 +219,10 @@ async def _borrow_user_qr(matcher: Matcher, msg: Message = Arg("qr")) -> None:
 
 
 # ---------------------------------------------------------------- 机台登录（弃用）
-machine_login = on_command("机台登录", aliases={"jt"}, priority=5, block=True)
+# machine_login = on_command("机台登录", aliases={"jt"}, priority=5, block=True)
 
 
-@machine_login.handle()
+# @machine_login.handle()
 async def _machine_login(
     event, matcher: Matcher, args: Message = CommandArg()
 ) -> None:

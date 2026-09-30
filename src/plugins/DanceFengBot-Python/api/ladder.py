@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..token import Token
+from ..utils import logger
 from ..utils.http import http_get
 
 _URL = "https://dancedemo.shenghuayule.com/Dance/api/Match/GetQuanMinSeasons"
@@ -23,12 +24,18 @@ class Ladder:
 
     @staticmethod
     def get(token: Token) -> list["Ladder"]:
-        resp = http_get(_URL, headers={"Authorization": token.bearer_token})
+        resp = http_get(
+            _URL,
+            headers={"Authorization": token.bearer_token},
+            context="天梯赛季",
+        )
         if resp is None:
+            logger.warning("[天梯赛季] 请求失败，返回空列表")
             return []
         try:
             arr = resp.json()
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[天梯赛季] 响应解析失败：{exc}")
             return []
         result: list[Ladder] = []
         for e in arr:
@@ -44,4 +51,10 @@ class Ladder:
             ladder.is_current = e.get("IsCurrent", False)
             ladder.is_topest = e.get("IsTopest", False)
             result.append(ladder)
+        current = next((x for x in result if x.is_current), None)
+        logger.debug(
+            f"[天梯赛季] 共 {len(result)} 个赛季，"
+            f"当前赛季={current.match_name if current else '无'}，"
+            f"段位={current.level_grade if current else '-'}"
+        )
         return result

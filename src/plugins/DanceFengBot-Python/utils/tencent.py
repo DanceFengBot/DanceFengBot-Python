@@ -10,9 +10,9 @@ import hmac
 import json
 import time
 
-import httpx
-
 from ..config import api_keys
+from . import logger
+from .http import http_post
 
 _SERVICE = "ocr"
 _HOST = "ocr.tencentcloudapi.com"
@@ -30,7 +30,9 @@ def qr_decode_tencent(img_url: str) -> str:
     secret_id = api_keys.tencent_secret_id
     secret_key = api_keys.tencent_secret_key
     if not secret_id or not secret_key:
+        logger.error("[二维码识别] 未配置腾讯云 OCR 密钥，跳过识别")
         return ""
+    logger.debug(f"[二维码识别] 开始识别图片：{img_url}")
 
     payload = json.dumps({"ImageUrl": img_url}, ensure_ascii=False)
     timestamp = int(time.time())
@@ -80,14 +82,40 @@ def qr_decode_tencent(img_url: str) -> str:
         "X-TC-Region": _REGION,
     }
 
-    try:
-        resp = httpx.post(
-            f"https://{_HOST}", headers=headers, content=payload, timeout=30.0
-        )
-        data = resp.json()
-        results = data.get("Response", {}).get("CodeResults") or []
-        if results:
-            return results[0].get("Url", "")
-    except Exception:
+    resp = http_post(
+        f"https://{_HOST}",
+        headers=headers,
+        data=payload,
+        context="二维码识别-腾讯OCR",
+    )
+    if resp is None:
+        logger.error("[二维码识别] 腾讯 OCR 请求失败")
         return ""
-    return ""
+    if resp.status_code != 200:
+        logger.error(
+            f"[二维码识别] 腾讯 OCR 返回状态码 {resp.status_code}：{resp.text[:200]}"
+        )
+        return ""
+    try:
+        data = resp.json()
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            f"[二维码识别] 响应解析失败：{exc}；内容（前 200 字符）：{resp.text[:200]}"
+        )
+        return ""
+
+    response = data.get("Response", {})
+    if response.get("Error"):
+        error = response["Error"]
+        logger.error(
+            f"[二维码识别] 腾讯 OCR 业务错误："
+            f"{error.get('Code')} - {error.get('Message')}"
+        )
+        return ""
+    results = response.get("CodeResults") or []
+    if not results:
+        logger.warning("[二维码识别] 腾讯 OCR 未识别到二维码")
+        return ""
+    url = results[0].get("Url", "")
+    logger.debug(f"[二维码识别] 识别结果：{url or '空'}")
+    return url

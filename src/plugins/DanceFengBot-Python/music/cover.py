@@ -7,6 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 from ..config import CONFIG_PATH
+from ..utils import logger
 from ..utils.http import get_bytes_from_url
 from .util import get_music, is_official
 
@@ -33,17 +34,21 @@ def download_cover(id: int) -> None:
     music = get_music(id)
     data = get_bytes_from_url(music.cover_url)
     if not data:
+        logger.error(f"[歌曲封面] id={id} 封面下载失败，URL 无效：{music.cover_url!r}")
         raise RuntimeError(f"{id} 的 id 封面 url 无效")
     import io
 
     img = Image.open(io.BytesIO(data))
     img.convert("RGB").save(_get_img_path(id), "JPEG")
+    logger.debug(f"[歌曲封面] id={id} 封面已保存：{_get_img_path(id)}")
 
 
 def get_cover_or_default(id: int) -> Image.Image | None:
     if is_cover_absent(id):
+        logger.debug(f"[歌曲封面] id={id} 本地封面缺失，使用默认封面")
         id = 0
     try:
         return Image.open(_get_img_path(id)).convert("RGBA")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[歌曲封面] 封面读取失败：{_get_img_path(id)} | {exc}")
         return None

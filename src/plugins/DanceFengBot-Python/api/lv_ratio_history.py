@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 
 from ..token import Token
+from ..utils import logger
 from ..utils.http import http_get
 
 _URL = "https://dancedemo.shenghuayule.com/Dance/api/User/GetLvRatioHistory"
@@ -21,14 +22,21 @@ class LvRatioHistory:
         resp = http_get(
             f"{_URL}?userId={token.user_id}",
             headers={"Authorization": token.bearer_token},
+            context="历史战力",
         )
         if resp is None:
+            logger.warning("[历史战力] 请求失败，返回空列表")
             return []
         try:
             arr = json.loads(resp.text)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                f"[历史战力] 响应解析失败：{exc}；"
+                f"内容（前 200 字符）：{resp.text[:200]}"
+            )
             return []
         if not isinstance(arr, list):
+            logger.warning(f"[历史战力] 响应不是数组，类型={type(arr).__name__}")
             return []
         result: list[LvRatioHistory] = []
         for o in arr:
@@ -37,8 +45,10 @@ class LvRatioHistory:
                 dt = _parse_time(log_time)
                 ratio = int(o.get("LvRatio", 0))
                 result.append(LvRatioHistory(dt, ratio))
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                logger.error(f"[历史战力] 单条记录解析失败：{exc}；原始数据={o}")
                 return []
+        logger.debug(f"[历史战力] 共 {len(result)} 条记录")
         return result
 
     def __repr__(self) -> str:

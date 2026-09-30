@@ -11,6 +11,7 @@ from ..ratio.calculator import (
     get_sub_recent_15_list,
 )
 from ..token import Token
+from ..utils import logger
 from .common import (
     INFO_FONT,
     BLACK,
@@ -25,6 +26,7 @@ from .common import (
 class UserRatioImage:
     @staticmethod
     def generate(token: Token) -> bytes | None:
+        logger.debug(f"[B15-R15图] 开始生成：userId={token.user_id}")
         drawer, info, lv_ratio, _ = prepare_ratio_card(token, "Background1.png")
         if drawer is None:
             return None
@@ -44,6 +46,10 @@ class UserRatioImage:
         avg1 = average(rank15_list)
         avg2 = average(recent15_list)
         all_avg = (avg1 + avg2) / 2
+        logger.debug(
+            f"[B15-R15图] userId={token.user_id} B15={len(rank15_list)}首 "
+            f"R15={len(recent15_list)}首 平均战力={all_avg:.4f}"
+        )
         extra = (
                 f"上次战力：{last}\n"
                 f"B-15 战力：{avg1:.4f}\n"

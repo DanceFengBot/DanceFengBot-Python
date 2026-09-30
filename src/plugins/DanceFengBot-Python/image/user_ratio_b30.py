@@ -9,6 +9,7 @@ from ..ratio.calculator import (
     get_sub_rank_30_list,
 )
 from ..token import Token
+from ..utils import logger
 from .common import (
     INFO_FONT,
     BLACK,
@@ -23,6 +24,7 @@ from .common import (
 class UserRatioBest30Image:
     @staticmethod
     def generate(token: Token) -> bytes | None:
+        logger.debug(f"[B30图] 开始生成：userId={token.user_id}")
         drawer, info, lv_ratio, _ = prepare_ratio_card(token, "Background2.png")
         if drawer is None:
             return None
@@ -35,6 +37,10 @@ class UserRatioBest30Image:
 
         last = get_last_ratio(ratio_list, info)
         avg1 = average(rank30_list)
+        logger.debug(
+            f"[B30图] userId={token.user_id} B30={len(rank30_list)}首 "
+            f"平均战力={avg1:.4f}"
+        )
         extra = (
             f"上次战力：{last}\n"
             f"B-30 战力：{avg1:.4f}\n"

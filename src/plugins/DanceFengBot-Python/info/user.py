@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..token import Token
+from ..utils import logger
 from ..utils.http import http_get
 from .status import InfoStatus
 
@@ -55,26 +56,38 @@ class UserInfo:
         resp = http_get(
             f"{_BASE}/api/User/GetInfo?userId={token.user_id}",
             headers={"Authorization": token.bearer_token},
+            context="个人信息",
         )
         if resp is None:
+            logger.error(f"[个人信息] 请求失败：userId={token.user_id}")
             return UserInfo.get_null()
-        return _parse_user_info(resp.text)
+        info = _parse_user_info(resp.text)
+        logger.debug(
+            f"[个人信息] userId={info.user_id} 名称={info.user_name or '-'} "
+            f"战力={info.lv_ratio} 状态={info.status.value}"
+        )
+        return info
 
     @staticmethod
     def get_by_id(token: Token, id: int) -> "UserInfo":
+        logger.debug(f"[个人信息] 查询目标账号：id={id}")
         resp = http_get(
             f"{_BASE}/api/User/GetInfo?userId={id}",
             headers={"Authorization": token.bearer_token},
+            context="个人信息-按ID查询",
         )
         text = resp.text if resp is not None else ""
         status = _status_of(text)
+        logger.debug(f"[个人信息] id={id} 可见状态={status.value}")
 
         user_info = UserInfo.get_null()
 
         if status == InfoStatus.PRIVATE:
+            logger.info(f"[个人信息] id={id} 已设置保密，改用搜索接口取基础信息")
             search = http_get(
                 f"{_BASE}/api/Common/Search?keyword={id}&type=0&page=1&pagesize=1",
                 headers={"Authorization": token.bearer_token},
+                context="个人信息-搜索接口",
             )
             if search is not None:
                 try:
@@ -86,17 +99,34 @@ class UserInfo:
                         user_info.headimg_url = o.get("HeadimgURL", "")
                         user_info.lv_ratio = o.get("LvRatio", 0)
                         user_info.city_name = o.get("Region", "")
-                except Exception:
-                    pass
+                        logger.debug(
+                            f"[个人信息] 搜索命中：名称={user_info.user_name} "
+                            f"战力={user_info.lv_ratio}"
+                        )
+                    else:
+                        logger.warning(f"[个人信息] 搜索接口未命中 id={id}")
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        f"[个人信息] 搜索接口响应解析失败：{exc}；"
+                        f"内容（前 200 字符）：{search.text[:200]}"
+                    )
+            else:
+                logger.error(f"[个人信息] 搜索接口请求失败：id={id}")
             user_info.status = InfoStatus.PRIVATE
             return user_info
 
         if status == InfoStatus.NONEXISTENT:
+            logger.warning(f"[个人信息] 账号不存在：id={id}")
             user_info = UserInfo()
             user_info.status = InfoStatus.NONEXISTENT
             return user_info
 
-        return _parse_user_info(text)
+        parsed = _parse_user_info(text)
+        logger.debug(
+            f"[个人信息] id={id} 查询成功：名称={parsed.user_name or '-'} "
+            f"战力={parsed.lv_ratio}"
+        )
+        return parsed
 
 
 def _status_of(message: str) -> InfoStatus:
@@ -113,7 +143,10 @@ def _parse_user_info(text: str) -> UserInfo:
     u = UserInfo()
     try:
         data = json.loads(text)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            f"[个人信息] 响应不是合法 JSON：{exc}；内容（前 200 字符）：{text[:200]}"
+        )
         return UserInfo.get_null()
     u.user_id = data.get("UserID", 0)
     u.music_score = data.get("MusicScore", 0)

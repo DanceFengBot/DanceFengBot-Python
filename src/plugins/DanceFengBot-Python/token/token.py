@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
+from ..utils import logger
 from ..utils.http import http_get, http_post
 
 _BASE = "https://dancedemo.shenghuayule.com/Dance"
@@ -33,11 +34,20 @@ class Token:
 
     def check_available(self) -> bool:
         """通过查看账户未读消息检测 Token 是否可用。"""
+        logger.debug(f"[Token] 检测可用性：userId={self.user_id}")
         resp = http_get(
             f"{_BASE}/api/Message/GetUnreadCount",
             headers={"Authorization": self.bearer_token},
+            context="Token可用性检测",
         )
         self.available = resp is not None and resp.status_code == 200
+        if not self.available:
+            status = resp.status_code if resp is not None else "无响应"
+            logger.warning(
+                f"[Token] userId={self.user_id} 检测失败：状态={status}"
+            )
+        else:
+            logger.debug(f"[Token] userId={self.user_id} 检测通过")
         return not (
             not self.available or self.access_token is None or self.refresh_token is None
         )
@@ -45,7 +55,9 @@ class Token:
     def refresh(self) -> bool:
         """刷新 Token，成功返回 ``True``。"""
         if not self.available:
+            logger.warning(f"[Token] userId={self.user_id} 当前不可用，跳过刷新")
             return False
+        logger.debug(f"[Token] 开始刷新：userId={self.user_id}")
         resp = http_post(
             f"{_BASE}/token",
             headers={"content-type": "application/x-www-form-urlencoded"},
@@ -54,19 +66,26 @@ class Token:
                 "grant_type": "refresh_token",
                 "refresh_token": self.refresh_token or "",
             },
+            context="Token刷新",
         )
         if resp is None:
+            logger.error(f"[Token] userId={self.user_id} 刷新失败：无响应")
             return False
         if resp.status_code != 200:
             self.available = False
+            logger.error(
+                f"[Token] userId={self.user_id} 刷新失败：状态码 {resp.status_code}"
+            )
             return False
         try:
             data = resp.json()
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[Token] userId={self.user_id} 刷新响应解析失败：{exc}")
             return False
         self.access_token = data.get("access_token")
         self.refresh_token = data.get("refresh_token")
         self.rec_time = int(time.time() * 1000)
+        logger.debug(f"[Token] userId={self.user_id} 刷新成功")
         return True
 
     def force_accessible(self) -> None:

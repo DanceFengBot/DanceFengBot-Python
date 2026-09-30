@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import TypeVar
 
+from ..utils import logger
 from ..utils.http import http_get
 from .rank_music import RankMusicInfo
 from .recent_music import RecentMusicInfo
@@ -24,7 +25,11 @@ def average(multi_info: list[T]) -> float:
 def _get_category_rank_list(json_str: str) -> list[RankMusicInfo]:
     try:
         arr = json.loads(json_str)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            f"[战力计算] 榜单响应解析失败：{exc}；"
+            f"内容（前 200 字符）：{json_str[:200]}"
+        )
         return []
     result: list[RankMusicInfo] = []
     for obj in arr:
@@ -44,21 +49,43 @@ def get_all_rank_list(auth: str) -> list[RankMusicInfo]:
     url = f"{_BASE}/api/User/GetMyRankNew?musicIndex="
     music_infos: list[RankMusicInfo] = []
     for i in range(2, 7):  # 2 3 4 5 6：国语 粤语 韩语 欧美 其它
-        resp = http_get(url + str(i), headers={"Authorization": auth})
+        resp = http_get(
+            url + str(i),
+            headers={"Authorization": auth},
+            context=f"战力计算-榜单(musicIndex={i})",
+        )
         if resp is not None:
+            before = len(music_infos)
             music_infos.extend(_get_category_rank_list(resp.text))
+            logger.debug(
+                f"[战力计算] musicIndex={i} 取得 {len(music_infos) - before} 条成绩"
+            )
+        else:
+            logger.warning(f"[战力计算] musicIndex={i} 榜单请求失败，已跳过")
+    logger.info(f"[战力计算] 榜单成绩合计 {len(music_infos)} 条")
     return music_infos
 
 
 def get_all_recent_list(auth: str) -> list[RecentMusicInfo]:
-    resp = http_get(f"{_BASE}/api/User/GetLastPlay", headers={"Authorization": auth})
+    resp = http_get(
+        f"{_BASE}/api/User/GetLastPlay",
+        headers={"Authorization": auth},
+        context="战力计算-最近游玩",
+    )
     if resp is None:
+        logger.error("[战力计算] 最近游玩记录请求失败")
         return []
     try:
         arr = json.loads(resp.text)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            f"[战力计算] 最近游玩记录解析失败：{exc}；"
+            f"内容（前 200 字符）：{resp.text[:200]}"
+        )
         return []
-    return [RecentMusicInfo(e) for e in arr]
+    result = [RecentMusicInfo(e) for e in arr]
+    logger.debug(f"[战力计算] 最近游玩记录 {len(result)} 条")
+    return result
 
 
 def is_ratio_valid(music_info: RecordedMusicInfo) -> bool:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from ..utils import logger
 from ..utils.http import get_bytes_from_url
 from .effect import ImageEffect, TextEffect
 
@@ -36,6 +37,7 @@ def make_round_corner(img: Image.Image, arc_w: int, arc_h: int) -> Image.Image:
 def read_image(source: str | None) -> Image.Image | None:
     """从 URL / 文件 / 相对路径读取图片，失败返回 ``None``。"""
     if not source:
+        logger.debug("[图片读取] 未提供图片来源，跳过")
         return None
     s = str(source).strip()
     data: bytes | None = None
@@ -48,14 +50,17 @@ def read_image(source: str | None) -> Image.Image | None:
         if p.exists():
             try:
                 return Image.open(p).convert("RGBA")
-            except Exception:
+            except Exception as exc:  # noqa: BLE001
+                logger.error(f"[图片读取] 本地图片打开失败：{p} | {exc}")
                 return None
         data = get_bytes_from_url(CDN_BASE + "/" + s)
     if not data:
+        logger.error(f"[图片读取] 图片下载失败，返回空：{s}")
         return None
     try:
         return Image.open(io.BytesIO(data)).convert("RGBA")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[图片读取] 图片解码失败：{s} | {exc}")
         return None
 
 

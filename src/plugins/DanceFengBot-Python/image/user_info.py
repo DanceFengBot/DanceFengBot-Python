@@ -11,6 +11,7 @@ from ..info.reply_item import ReplyItem
 from ..info.status import InfoStatus
 from ..info.user import UserInfo
 from ..token import Token
+from ..utils import logger
 from ..utils.fonts import load_font
 from .common import _badge_url
 from .drawer import ImageDrawer, read_image
@@ -25,6 +26,7 @@ _FONT2 = load_font("得意黑", 20)
 class UserInfoImage:
     @staticmethod
     def generate(token: Token, id: int) -> bytes | None:
+        logger.debug(f"[个人信息图] 开始生成：请求者={token.user_id} 目标={id}")
         user_info = UserInfo.get_by_id(token, id)
         ladder = Ladder.get(token)
         current = next(
@@ -33,14 +35,22 @@ class UserInfoImage:
         rank = current.level_grade if current else -1
 
         if user_info.status == InfoStatus.NONEXISTENT:
+            logger.warning(f"[个人信息图] 目标账号不存在：{id}")
             return None
         if not user_info.headimg_url:
+            logger.error(f"[个人信息图] 目标 {id} 缺少头像地址，无法生成图片")
             return None
 
         try:
             bg = Image.open(_BG_PATH).convert("RGBA")
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[个人信息图] 背景图打开失败：{_BG_PATH} | {exc}")
             return None
+
+        logger.debug(
+            f"[个人信息图] 目标 {id} 数据就绪：名称={user_info.user_name or '-'} "
+            f"战力={user_info.lv_ratio} 段位={rank} 状态={user_info.status.value}"
+        )
 
         drawer = ImageDrawer(bg)
         drawer.set_anti_aliasing()

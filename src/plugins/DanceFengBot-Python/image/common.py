@@ -10,6 +10,7 @@ from ..config import CONFIG_PATH
 from ..music.cover import get_cover_or_default
 from ..ratio.acc_grade import AccGrade
 from ..ratio.recorded import RecordedMusicInfo
+from ..utils import logger
 from ..utils.fonts import load_font
 from .drawer import BLACK, WHITE, ImageDrawer, read_image
 from .effect import ImageEffect, TextEffect
@@ -30,7 +31,8 @@ def _asset(name: str) -> Image.Image | None:
     p = RATIO_IMAGE_PATH / name
     try:
         return Image.open(p).convert("RGBA")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[图片素材] 素材加载失败：{p} | {exc}")
         return None
 
 
@@ -91,9 +93,14 @@ def prepare_ratio_card(token, background_name: str):
     ladder = Ladder.get(token)
     current = next((l for l in ladder if l.is_current), None)
     rank = current.level_grade if current else -1
+    logger.debug(
+        f"[图片生成] 用户 {info.user_id} 段位={rank} 战力={info.lv_ratio} "
+        f"背景={background_name}"
+    )
 
     bg = _asset(background_name)
     if bg is None:
+        logger.error(f"[图片生成] 背景素材缺失，无法生成图片：{background_name}")
         return None, info, 0, rank
 
     drawer = ImageDrawer(bg.copy())

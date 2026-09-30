@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..config import CONFIG_PATH
+from ..utils import logger
 from ..utils.http import http_get, http_post
 from .token import Token
 
@@ -65,13 +66,20 @@ class TokenBuilder:
         if id is None:
             id = self.id
         encoded = urllib.parse.quote(id, safe="")
-        resp = http_get(f"{_BASE}/api/Common/GetQrCode?id={encoded}")
+        logger.debug(f"[二维码登录] 使用 client_id={id} 获取登录二维码")
+        resp = http_get(
+            f"{_BASE}/api/Common/GetQrCode?id={encoded}", context="二维码登录-获取二维码"
+        )
         if resp is None:
+            logger.error("[二维码登录] 获取二维码失败：无响应")
             return ""
         try:
-            return resp.json().get("QrcodeUrl", "")
-        except Exception:
+            qr_url = resp.json().get("QrcodeUrl", "")
+            logger.debug(f"[二维码登录] 二维码链接：{qr_url}")
+            return qr_url
+        except Exception as exc:  # noqa: BLE001
             # ID 已失效，移除
+            logger.error(f"[二维码登录] 二维码响应解析失败：{exc}")
             try:
                 TokenBuilder.ids.remove(id)
             except ValueError:
@@ -94,23 +102,39 @@ class TokenBuilder:
         }
         start = time.time()
         wait = time.time()
+        attempts = 0
+        logger.info("[二维码登录] 开始轮询扫码结果，最长等待 5 分钟")
         while time.time() - start < 300:
             if time.time() - wait < 4:
                 time.sleep(0.5)
                 continue
             wait = time.time()
-            resp = http_post(f"{_BASE}/token", headers=headers, data=body)
+            attempts += 1
+            resp = http_post(
+                f"{_BASE}/token", headers=headers, data=body, context="二维码登录-换取Token"
+            )
             if resp is not None and resp.status_code == 200:
                 try:
                     data = resp.json()
-                    return Token(
+                    token = Token(
                         user_id=data.get("userId", 0),
                         access_token=data.get("access_token"),
                         refresh_token=data.get("refresh_token"),
                         rec_time=cur_time,
                     )
-                except Exception:
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(f"[二维码登录] Token 响应解析失败：{exc}")
                     return None
+                logger.info(
+                    f"[二维码登录] 第 {attempts} 次轮询登录成功，"
+                    f"userId={token.user_id}，耗时 {time.time() - start:.1f}s"
+                )
+                return token
+            if resp is not None:
+                logger.debug(
+                    f"[二维码登录] 第 {attempts} 次轮询未完成，状态码 {resp.status_code}"
+                )
+        logger.warning(f"[二维码登录] 轮询超时（共 {attempts} 次请求）")
         return None
 
     # ------------------------------------------------------------- file io
