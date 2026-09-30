@@ -16,7 +16,7 @@ from .commands import login, info_ratio, misc  # noqa: F401  # 注册命令
 from .utils import logger
 
 # 黑名单 / 白名单：导入即加载配置文件并注册全局拦截器
-from . import access_list as _access_list  # noqa: E402  # 需在日志初始化之后导入
+# from . import access_list as _access_list  # noqa: E402  # 需在日志初始化之后导入
 
 driver = get_driver()
 
@@ -113,19 +113,19 @@ def _setup_scheduler() -> None:
 
 
 # ---------------------------------------------------------------- 黑白名单
-def _start_access_list() -> None:
-    """加载黑白名单配置，并在控制台说明当前启用状态。
-
-    两者同时启用属于配置错误，按需求直接报错退出。
-    """
-    # 启动阶段再解析一次：输出格式提示与当前启用状态
-    _access_list.load_all()
-    try:
-        _access_list.validate()
-    except _access_list.AccessListError as exc:
-        logger.error(f"[黑白名单] 配置错误：{exc}")
-        raise SystemExit(1) from exc
-    _access_list.report(prefix="[黑白名单]")
+# def _start_access_list() -> None:
+#     """加载黑白名单配置，并在控制台说明当前启用状态。
+#
+#     两者同时启用属于配置错误，按需求直接报错退出。
+#     """
+#     # 启动阶段再解析一次：输出格式提示与当前启用状态
+#     _access_list.load_all()
+#     try:
+#         _access_list.validate()
+#     except _access_list.AccessListError as exc:
+#         logger.error(f"[黑白名单] 配置错误：{exc}")
+#         raise SystemExit(1) from exc
+#     _access_list.report(prefix="[黑白名单]")
 
 
 # ---------------------------------------------------------------- 生命周期
@@ -135,7 +135,7 @@ async def _on_startup() -> None:
     logger.info("[启动] 开始加载本地 Token 文件")
     store.user_tokens_map = store.load_tokens(False)
     logger.info(f"刷新加载成功！共{len(store.user_tokens_map)}条")
-    _start_access_list()
+    # _start_access_list()
     _log_startup_ready()
     _STARTED = True
 
@@ -185,12 +185,12 @@ friend_request = on_request(priority=1, block=False)
 @friend_request.handle()
 async def _friend_request(event: FriendRequestEvent, bot: Bot) -> None:
     # 加好友按私聊处理：只看 users 中的 QQ 号
-    allowed, reason = _access_list.check_target(
-        group_id=None, user_id=event.user_id, sender_id=event.user_id
-    )
-    if not allowed:
-        logger.info(f"[加好友] 名单拦截，已忽略 QQ={event.user_id} 的好友请求：{reason}")
-        return
+    # allowed, reason = _access_list.check_target(
+    #     group_id=None, user_id=event.user_id, sender_id=event.user_id
+    # )
+    # if not allowed:
+    #     logger.info(f"[加好友] 名单拦截，已忽略 QQ={event.user_id} 的好友请求：{reason}")
+    #     return
     logger.info(f"[加好友] 收到 QQ={event.user_id} 的好友请求，自动同意")
     await event.approve(bot)
     try:
