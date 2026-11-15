@@ -6,13 +6,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 from nonebot import get_driver, on_request
 from nonebot.adapters.onebot.v11 import Bot, FriendRequestEvent
 
-from . import store
+# 导入 curfew 即注册全局的宵禁拦截与回复延迟（对所有功能生效）
+from . import curfew, store
 from .commands import login, info_ratio, misc  # noqa: F401  # 注册命令
+from .deps import clear_cache
 from .utils import logger
 
 # 黑名单 / 白名单：导入即加载配置文件并注册全局拦截器
@@ -92,7 +95,7 @@ def refresh_all_tokens() -> None:
 
 
 def _setup_scheduler() -> None:
-    """使用 nonebot-plugin-apscheduler 注册每日 Token 刷新任务。"""
+    """使用 nonebot-plugin-apscheduler 注册每日 Token 刷新、缓存清理与封面更新任务。"""
     try:
         from nonebot import require
 
@@ -108,24 +111,35 @@ def _setup_scheduler() -> None:
             replace_existing=True,
         )
         logger.debug("[定时任务] 已注册每日 03:10 的 Token 刷新任务")
+
+        # 图片缓存只服务当天的消息发送，每天 0:00 清空 DcConfig/cache
+        scheduler.add_job(
+            clear_cache,
+            "cron",
+            hour=0,
+            minute=0,
+            id="dance_feng_bot_clear_image_cache",
+            replace_existing=True,
+        )
+        logger.debug("[定时任务] 已注册每日 00:00 的图片缓存清理任务")
+
+        # 官方曲目封面：每天 03:00 拉取最新封面清单，只补缺失的封面
+        from .music import run_scheduled_update
+
+        scheduler.add_job(
+            run_scheduled_update,
+            "cron",
+            hour=3,
+            minute=0,
+            id="dance_feng_bot_update_official_covers",
+            replace_existing=True,
+        )
+        logger.debug("[定时任务] 已注册每日 03:00 的官方曲目封面更新任务")
     except Exception:  # noqa: BLE001
-        logger.warning("nonebot_plugin_apscheduler 不可用，已跳过每日自动刷新 Token")
-
-
-# ---------------------------------------------------------------- 黑白名单
-# def _start_access_list() -> None:
-#     """加载黑白名单配置，并在控制台说明当前启用状态。
-#
-#     两者同时启用属于配置错误，按需求直接报错退出。
-#     """
-#     # 启动阶段再解析一次：输出格式提示与当前启用状态
-#     _access_list.load_all()
-#     try:
-#         _access_list.validate()
-#     except _access_list.AccessListError as exc:
-#         logger.error(f"[黑白名单] 配置错误：{exc}")
-#         raise SystemExit(1) from exc
-#     _access_list.report(prefix="[黑白名单]")
+        logger.warning(
+            "nonebot_plugin_apscheduler 不可用，已跳过每日自动刷新 Token、"
+            "图片缓存清理与官方曲目封面更新"
+        )
 
 
 # ---------------------------------------------------------------- 生命周期
@@ -135,7 +149,10 @@ async def _on_startup() -> None:
     logger.info("[启动] 开始加载本地 Token 文件")
     store.user_tokens_map = store.load_tokens(False)
     logger.info(f"刷新加载成功！共{len(store.user_tokens_map)}条")
+    # 停机期间错过 0:00 清理时，启动后补一次（仅清掉非当天的图片缓存）
+    await asyncio.to_thread(clear_cache, keep_current_day=True)
     # _start_access_list()
+    logger.info(f"[宵禁] {curfew.describe()}")
     _log_startup_ready()
     _STARTED = True
 

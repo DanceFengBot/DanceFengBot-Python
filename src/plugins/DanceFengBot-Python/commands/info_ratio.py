@@ -8,7 +8,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
 from .. import store
-from ..deps import Timer, image_segment, resolve_token, to_thread
+from ..deps import Timer, generated_image_segment, resolve_token, to_thread
 from ..image import (
     LevelScoresImage,
     UserInfoImage,
@@ -17,6 +17,8 @@ from ..image import (
     UserRatioImage,
 )
 from ..info.reply_item import ReplyItem
+from ..info.song_score import format_song_score
+from ..ratio import get_song_records
 from ..utils import logger
 
 # ---------------------------------------------------------------- 个人信息
@@ -40,11 +42,13 @@ async def _user_info(event, matcher: Matcher) -> None:
         logger.error(f"[个人信息] 生成失败，耗时 {timer}")
         await matcher.finish("个人信息获取失败，请稍后再试")
     logger.info(f"[个人信息] 生成成功，{len(png)} 字节，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(generated_image_segment(png, "UserInfoImage", qq))
 
 
 # ---------------------------------------------------------------- 查看他人（弃用）
-others_info = on_command("看看你的", aliases={"康康你的"}, priority=5, block=True)
+others_info = on_fullmatch(
+    ("看看你的", "康康你的"), priority=5, block=True
+)
 
 
 @others_info.handle()
@@ -82,7 +86,9 @@ async def _others_info(event, matcher: Matcher, args: Message = CommandArg()) ->
         logger.error(f"[查看他人] 目标 {target_id} 生成失败，耗时 {timer}")
         await matcher.finish("这个账号未保存或不存在！")
     logger.info(f"[查看他人] 目标 {target_id} 生成成功，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(
+        generated_image_segment(png, "UserInfoImage", str(event.user_id))
+    )
 
 
 # ---------------------------------------------------------------- 战力分析
@@ -105,7 +111,7 @@ async def _user_ratio(event, matcher: Matcher) -> None:
         logger.error(f"[战力分析] 生成失败，耗时 {timer}")
         await matcher.finish("战力图生成失败，请稍后再试")
     logger.info(f"[战力分析] 生成成功，{len(png)} 字节，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(generated_image_segment(png, "UserRatioImage", qq))
 
 
 user_ratio_b30 = on_fullmatch(("战力分析b30", "myrtb30"), priority=5, block=True)
@@ -125,7 +131,9 @@ async def _user_ratio_b30(event, matcher: Matcher) -> None:
         logger.error(f"[战力分析] B30 生成失败，耗时 {timer}")
         await matcher.finish("战力图生成失败，请稍后再试")
     logger.info(f"[战力分析] B30 生成成功，{len(png)} 字节，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(
+        generated_image_segment(png, "UserRatioBest30Image", qq)
+    )
 
 
 user_ratio_ap30 = on_fullmatch(("战力分析ap30", "myrtap30"), priority=5, block=True)
@@ -145,7 +153,9 @@ async def _user_ratio_ap30(event, matcher: Matcher) -> None:
         logger.error(f"[战力分析] AP30 生成失败，耗时 {timer}")
         await matcher.finish("战力图生成失败，请稍后再试")
     logger.info(f"[战力分析] AP30 生成成功，{len(png)} 字节，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(
+        generated_image_segment(png, "UserRatioAP30Image", qq)
+    )
 
 
 # ---------------------------------------------------------------- 分数列表
@@ -177,7 +187,7 @@ async def _level_scores(event, matcher: Matcher, args: Message = CommandArg()) -
         logger.error(f"[分数列表] 生成失败（level={level} page={pages}），耗时 {timer}")
         await matcher.finish("分数列表生成失败，请稍后再试")
     logger.info(f"[分数列表] 生成成功，{len(png)} 字节，耗时 {timer}")
-    await matcher.finish(image_segment(png))
+    await matcher.finish(generated_image_segment(png, "LevelScoresImage", qq))
 
 
 # ---------------------------------------------------------------- ReplyItem（Beta）
@@ -195,3 +205,50 @@ async def _reply_item(event, matcher: Matcher) -> None:
     item = await to_thread(ReplyItem.get, token)
     logger.info(f"[回复文本项] 取回数据，耗时 {timer}：{item}")
     await matcher.finish(str(item))
+
+
+# ---------------------------------------------------------------- 单曲成绩（文字）
+song_score = on_command(
+    "歌曲成绩",
+    aliases={"单曲成绩", "查歌成绩", "song"},
+    priority=5,
+    block=True,
+)
+
+
+@song_score.handle()
+async def _song_score(event, matcher: Matcher, args: Message = CommandArg()) -> None:
+    raw = args.extract_plain_text().strip()
+    if not raw:
+        await matcher.finish("格式：歌曲成绩 (歌曲id)\n例：歌曲成绩 6354")
+    try:
+        song_id = int(raw.split()[0])
+    except (ValueError, IndexError):
+        await matcher.finish("歌曲id 需要是数字哦")
+    if song_id <= 0:
+        await matcher.finish("歌曲id 需要是正整数哦")
+
+    qq = str(event.user_id)
+    token = await resolve_token(matcher, qq)
+    if token is None:
+        return
+
+    logger.info(f"[单曲成绩] QQ={qq} 查询歌曲 id={song_id}")
+    await matcher.send("小枫正在查成绩，等一下下💦...")
+    timer = Timer()
+    records = await to_thread(get_song_records, token.bearer_token, song_id)
+    if records is None:
+        logger.error(f"[单曲成绩] QQ={qq} 歌曲 id={song_id} 榜单获取失败，耗时 {timer}")
+        await matcher.finish("成绩查询失败，请稍后再试")
+    if not records:
+        logger.info(f"[单曲成绩] QQ={qq} 歌曲 id={song_id} 没有游玩记录，耗时 {timer}")
+        await matcher.finish(
+            f"没有找到 id:{song_id} 的游玩记录，请检查歌曲 id 是否正确。"
+        )
+
+    text = format_song_score(song_id, records)
+    logger.info(
+        f"[单曲成绩] QQ={qq} 歌曲 id={song_id} 返回 {len(records)} 个难度，"
+        f"耗时 {timer}，文本 {len(text)} 字符"
+    )
+    await matcher.finish(text)

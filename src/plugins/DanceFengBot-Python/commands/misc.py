@@ -21,6 +21,7 @@ from ..deps import (
     resolve_token,
     to_thread,
 )
+from ..music import CoverUpdateBusy, update_official_covers
 from ..token import Token, TokenBuilder
 from ..utils import logger
 
@@ -252,6 +253,35 @@ async def _hot_update(matcher: Matcher, args: Message = CommandArg()) -> None:
         await matcher.send("已成功刷新TokenID")
     if param in ("all", "reply"):
         await matcher.send("nope...")
+
+
+# ---------------------------------------------------------------- 官方曲目封面
+update_cover = on_command(
+    "#updateCover",
+    aliases={"更新封面", "更新官方封面"},
+    rule=admin_rule,
+    priority=4,
+    block=True,
+)
+
+
+@update_cover.handle()
+async def _update_cover(
+    event, matcher: Matcher, args: Message = CommandArg()
+) -> None:
+    param = args.extract_plain_text().strip().lower()
+    force = param in {"force", "all", "强制", "全部"}
+    logger.info(f"[封面更新] QQ={getattr(event, 'user_id', '?')} 触发更新（force={force}）")
+    await matcher.send("开始更新官方曲目封面，请稍候…（首次需要下载较多图片）")
+    try:
+        result = await to_thread(update_official_covers, force)
+    except CoverUpdateBusy:
+        logger.info("[封面更新] 已有更新任务在运行，忽略本次触发")
+        await matcher.finish("官方曲目封面正在更新中，请稍后再试～")
+    except Exception as exc:  # noqa: BLE001  # 失败时把原因回给管理员
+        logger.error(f"[封面更新] 管理员触发的更新失败：{exc}")
+        await matcher.finish(f"官方曲目封面更新失败：{exc}")
+    await matcher.finish(result.summary())
 
 
 clear_login = on_command("#clearLogin", rule=private_rule, priority=5, block=True)

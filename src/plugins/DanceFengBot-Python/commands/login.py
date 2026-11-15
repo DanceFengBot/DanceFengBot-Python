@@ -12,8 +12,8 @@ from .. import store
 from ..api.machine import Machine
 from ..api.phone_login import PhoneLoginBuilder
 from ..deps import (
+    generated_image_segment,
     group_rule,
-    image_segment,
     private_rule,
     resolve_token,
     to_thread,
@@ -49,8 +49,8 @@ async def _dc_login(event: PrivateMessageEvent, matcher: Matcher) -> None:
     logger.debug(f"[二维码登录] 二维码图片已就绪，{len(qr_bytes)} 字节，已发送给 QQ={qq}")
 
     await matcher.send(
-        MessageSegment.text("🤗快用微信扫码，在五分钟内登录上吧~")
-        + image_segment(qr_bytes)
+        MessageSegment.text("🤗快用微信扫码，在五分钟内登录上吧~") +
+        generated_image_segment(qr_bytes, "LoginQrcode", qq)
     )
 
     store.log_status.add(qq)
@@ -116,7 +116,7 @@ async def _phone_login_start(
     matcher.state["qq"] = str(event.user_id)
     await matcher.send(
         MessageSegment.text("🐈reCATcha 猫娘检测！\n如果你不是一只猫娘，请发送该识别码")
-        + image_segment(graph)
+        + generated_image_segment(graph, "LoginGraphCode", str(event.user_id))
         + MessageSegment.text("*请勿频繁登录！")
     )
 

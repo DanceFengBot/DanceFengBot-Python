@@ -168,3 +168,30 @@ def get_level_scores_list(
             continue
         valid.append(m)
     return valid
+
+
+def get_song_records(auth: str, song_id: int) -> list[RankMusicInfo] | None:
+    """查询歌曲 id 的个人成绩，按难度类型（``MusicLev``）排序返回。
+
+    同一难度若存在多条记录（例如同一首歌出现在多个分类里），只保留准确率
+    最高的一条。拉取榜单失败（返回空表）时返回 ``None``，交由调用方区分
+    「查询失败」与「没有游玩记录」。
+    """
+    song_id = int(song_id)
+    all_records = get_all_rank_list(auth)
+    if not all_records:
+        return None
+
+    best: dict[int, RankMusicInfo] = {}
+    for record in all_records:
+        if record.id != song_id:
+            continue
+        current = best.get(record.level_type)
+        if current is None or record.accuracy > current.accuracy:
+            best[record.level_type] = record
+
+    logger.debug(
+        f"[单曲成绩] id={song_id} 命中 {len(best)} 个难度："
+        f"{sorted(best)}"
+    )
+    return sorted(best.values(), key=lambda r: r.level_type)
