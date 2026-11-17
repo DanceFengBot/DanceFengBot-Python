@@ -51,6 +51,9 @@ def format_song_score(song_id: int, records: list[RankMusicInfo]) -> str:
         return f"没有找到 id:{song_id} 的游玩记录，请检查歌曲 id 是否正确。"
 
     name = next((record.name for record in records if record.name), "未知曲目")
+    # 自制谱在歌名前加 [自制] 前缀（官谱的 OwnerType 为 1）
+    if not all(record.is_official() for record in records):
+        name = f"[自制] {name}"
     lines = [f"🎵 {name}（id:{song_id}）", ""]
     for record in sorted(records, key=lambda item: item.level_type):
         lines.append(f"【{level_type_name(record.level_type)}】Lv.{record.level}")
