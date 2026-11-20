@@ -7,7 +7,7 @@ from functools import lru_cache
 from PIL import Image
 
 from ..config import CONFIG_PATH
-from ..music.cover import get_cover_or_default
+from ..music.cover import ensure_covers, get_cover_or_default
 from ..ratio.acc_grade import AccGrade
 from ..ratio.recorded import RecordedMusicInfo
 from ..utils import logger
@@ -143,6 +143,8 @@ def draw_music_grid(
     max_rows: int = 5,
 ) -> None:
     """绘制歌曲卡片网格。"""
+    # 绘制前预取缺失的封面（并发下载），避免在循环里逐张等待网络
+    ensure_covers(info.id for info in music_list)
     dx, dy = 395, 180
     index = 0
     for row in range(max_rows):

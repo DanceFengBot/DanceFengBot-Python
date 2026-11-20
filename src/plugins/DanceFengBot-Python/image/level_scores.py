@@ -71,14 +71,3 @@ class LevelScoresImage:
         )
         drawer.dispose()
         return drawer.get_image_bytes("png")
-
-    @classmethod
-    def test(
-        cls, access_token: str, user_id: int = 0, level: int = 1, pages: int = 1
-    ) -> bytes | None:
-        """本地测试：用手动填写的 token 生成指定等级分数列表图并写出 PNG。"""
-        from .testing import make_token, save_test_image
-
-        data = cls.generate(make_token(access_token, user_id), level, pages)
-        save_test_image("level_scores", data)
-        return data

@@ -210,7 +210,7 @@ async def _reply_item(event, matcher: Matcher) -> None:
 # ---------------------------------------------------------------- 单曲成绩（文字）
 song_score = on_command(
     "歌曲成绩",
-    aliases={"单曲成绩", "查歌成绩", "song"},
+    aliases={"单曲成绩", "music"},
     priority=5,
     block=True,
 )
