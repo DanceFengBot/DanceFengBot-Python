@@ -45,50 +45,85 @@ async def _user_info(event, matcher: Matcher) -> None:
     await matcher.finish(generated_image_segment(png, "UserInfoImage", qq))
 
 
-# ---------------------------------------------------------------- 查看他人（弃用）
-others_info = on_fullmatch(
-    ("看看你的", "康康你的"), priority=5, block=True
+# ---------------------------------------------------------------- 查看他人
+others_info = on_command("看看你的", aliases={"康康你的"}, priority=5, block=True)
+
+_TARGET_USAGE = (
+    "格式：看看你的 (舞立方ID/QQ号/@群友)\n"
+    "例：看看你的 12345678"
 )
 
 
-@others_info.handle()
-async def _others_info(event, matcher: Matcher, args: Message = CommandArg()) -> None:
-    arg = args.extract_plain_text().strip()
-    if not arg:
-        return
-    try:
-        num = int(arg)
-    except ValueError:
-        logger.debug(f"[查看他人] 参数不是数字，忽略：{arg!r}")
-        return
+def _extract_at_qq(message: Message) -> int | None:
+    """取出消息里第一个 @ 的 QQ 号（忽略 @全体成员 等非数字项）。"""
+    for segment in message:
+        if segment.type != "at":
+            continue
+        qq = str(segment.data.get("qq", "")).strip()
+        if qq.isdigit():
+            return int(qq)
+    return None
 
-    logger.info(f"[查看他人] QQ={event.user_id} 查询目标 {num}")
+
+def _resolve_target_id(num: int) -> int | None:
+    """把用户输入解析为舞立方 ID：5~8 位数字视为 ID，其余按已登录的 QQ 匹配。"""
+    if 9999 < num < 99_999_999:
+        return num
+    target_token = store.user_tokens_map.get(str(num))
+    if target_token is not None:
+        return target_token.user_id
+    return None
+
+
+@others_info.handle()
+async def _others_info(
+    event, matcher: Matcher, args: Message = CommandArg()
+) -> None:
+    qq = str(event.user_id)
+    at_qq = _extract_at_qq(args)
+    raw = args.extract_plain_text().strip()
+
+    if at_qq is not None:
+        if str(at_qq) == qq:
+            await matcher.finish("想看自己的信息，发“个人信息”就好啦")
+        target_token = store.user_tokens_map.get(str(at_qq))
+        if target_token is None:
+            logger.info(f"[查看他人] 被 @ 的 QQ={at_qq} 未登录过小枫")
+            await matcher.finish(
+                f"QQ {at_qq} 还没有登录过小枫，查不到舞立方ID呢\n"
+                "可以直接发送“看看你的 舞立方ID”来查询"
+            )
+        target_id = target_token.user_id
+        target_label = f"QQ={at_qq}"
+    else:
+        if not raw:
+            await matcher.finish(_TARGET_USAGE)
+        try:
+            num = int(raw)
+        except ValueError:
+            await matcher.finish("舞立方ID 或 QQ号需要是数字哦\n" + _TARGET_USAGE)
+        target_id = _resolve_target_id(num)
+        if target_id is None:
+            logger.warning(f"[查看他人] 无法识别目标标识：{num}")
+            await matcher.finish("唔...小枫好像不认识他")
+        target_label = f"ID={target_id}（输入 {num}）"
+
     token = await resolve_token(
         matcher,
-        str(event.user_id),
+        qq,
         invalid="小枫这登录身份过期了💦\n重新私信登录恢复吧💦",
     )
     if token is None:
         return
 
-    if 9999 < num < 99_999_999:  # 舞立方 ID
-        target_id = num
-    elif num > 999_999 and str(num) in store.user_tokens_map:  # QQ 号
-        target_id = store.user_tokens_map[str(num)].user_id
-    else:
-        logger.warning(f"[查看他人] 无法识别目标标识：{num}")
-        await matcher.finish("唔...小枫好像不认识他")
-    logger.debug(f"[查看他人] 目标舞立方 ID={target_id}")
-
+    logger.info(f"[查看他人] QQ={qq} 查询目标 {target_label}")
     timer = Timer()
     png = await to_thread(UserInfoImage.generate, token, target_id)
     if png is None:
         logger.error(f"[查看他人] 目标 {target_id} 生成失败，耗时 {timer}")
-        await matcher.finish("这个账号未保存或不存在！")
+        await matcher.finish("这个账号不存在或未公开信息！")
     logger.info(f"[查看他人] 目标 {target_id} 生成成功，耗时 {timer}")
-    await matcher.finish(
-        generated_image_segment(png, "UserInfoImage", str(event.user_id))
-    )
+    await matcher.finish(generated_image_segment(png, "UserInfoImage", qq))
 
 
 # ---------------------------------------------------------------- 战力分析
