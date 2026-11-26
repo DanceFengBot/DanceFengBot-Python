@@ -22,7 +22,7 @@ from ..deps import (
     to_thread,
 )
 from ..music import CoverUpdateBusy, update_official_covers
-from ..token import Token, TokenBuilder
+from ..token import Token
 from ..utils import logger
 
 
@@ -249,8 +249,7 @@ async def _hot_update(matcher: Matcher, args: Message = CommandArg()) -> None:
         return
     logger.info(f"[热更新] 收到 #update 参数：{param}")
     if param in ("all", "id"):
-        await matcher.send(str(TokenBuilder.update_ids()))
-        await matcher.send("已成功刷新TokenID")
+        await matcher.send("二维码登录已改为动态会话 ID，不再需要维护 TokenIds.json。")
     if param in ("all", "reply"):
         await matcher.send("nope...")
 

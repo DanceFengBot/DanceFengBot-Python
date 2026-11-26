@@ -44,7 +44,6 @@ CONFIG_PATH: Path = resolve_config_path()
 # 运行必需的文件与目录（缺失则启动报错并退出）
 _REQUIRED_FILES: tuple[str, ...] = (
     "ApiKeys.yml",
-    "TokenIds.json",
     "OfficialMusicIds.json",
 )
 _REQUIRED_DIRS: tuple[str, ...] = (

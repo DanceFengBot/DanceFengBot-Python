@@ -1,4 +1,9 @@
-"""Token 构建器，对应 Java 端 ``com.DanceCube.token.TokenBuilder``。"""
+"""Token 构建器，对应 Java 端 ``com.DanceCube.token.TokenBuilder``。
+
+舞立方的 ``/api/Common/GetQrCode`` 接口不传 ``id`` 时会自动创建一个二维码会话，
+并返回本次会话的 ``ID``。这个 ``ID`` 就是后续 ``/token`` 请求里的 ``client_id``，
+因此不再需要手动维护 ``TokenIds.json``。
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,6 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
-from ..config import CONFIG_PATH
 from ..utils import logger
 from ..utils.http import http_get, http_post
 from .token import Token
@@ -17,82 +21,63 @@ _BASE = "https://dancedemo.shenghuayule.com/Dance"
 
 
 class TokenBuilder:
-    """负责二维码登录的 ``client_id`` 管理以及轮询换取 Token。"""
-
-    ids: list[str] = []
-    pointer: int = 0
+    """二维码登录：动态获取二维码会话 ID，并轮询换取 Token。"""
 
     def __init__(self) -> None:
-        if not TokenBuilder.ids:
-            TokenBuilder.init_ids()
-        self.index = TokenBuilder.pointer
-        self.id = self._get_id()
-
-    # ------------------------------------------------------------------ ids
-    @classmethod
-    def init_ids(cls) -> list[str]:
-        path = CONFIG_PATH / "TokenIds.json"
-        if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("[]", encoding="utf-8")
-        try:
-            ids = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            ids = []
-        if not ids:
-            raise RuntimeError("# id缺失，请手动补充 TokenIds.json！")
-        cls.ids = list(ids)
-        return cls.ids
-
-    @classmethod
-    def update_ids(cls) -> list[str]:
-        cls.ids = cls.init_ids()
-        return cls.ids
-
-    @classmethod
-    def get_size(cls) -> int:
-        return len(cls.ids)
-
-    @classmethod
-    def _get_id(cls) -> str:
-        if cls.pointer > cls.get_size() - 1:
-            cls.pointer = 0
-        idx = cls.pointer
-        cls.pointer += 1
-        return cls.ids[idx]
+        # 本次二维码会话的 ID（即 /token 的 client_id），由 GetQrCode 返回
+        self.id = ""
 
     # ------------------------------------------------------------ qrcode url
     def get_qrcode_url(self, id: Optional[str] = None) -> str:
-        if id is None:
-            id = self.id
-        encoded = urllib.parse.quote(id, safe="")
-        logger.debug(f"[二维码登录] 使用 client_id={id} 获取登录二维码")
-        resp = http_get(
-            f"{_BASE}/api/Common/GetQrCode?id={encoded}", context="二维码登录-获取二维码"
-        )
+        """获取登录二维码。
+
+        不传 ``id`` 时由服务端新建会话；传入 ``id`` 时可复用已有会话。
+        """
+        url = f"{_BASE}/api/Common/GetQrCode"
+        if id:
+            url += "?id=" + urllib.parse.quote(id, safe="")
+            logger.debug(f"[二维码登录] 复用会话 ID={id} 获取登录二维码")
+        else:
+            logger.debug("[二维码登录] 不传 client_id，请求服务端新建二维码会话")
+
+        resp = http_get(url, context="二维码登录-获取二维码")
         if resp is None:
             logger.error("[二维码登录] 获取二维码失败：无响应")
             return ""
+
         try:
-            qr_url = resp.json().get("QrcodeUrl", "")
-            logger.debug(f"[二维码登录] 二维码链接：{qr_url}")
-            return qr_url
+            data = resp.json()
         except Exception as exc:  # noqa: BLE001
-            # ID 已失效，移除
             logger.error(f"[二维码登录] 二维码响应解析失败：{exc}")
-            try:
-                TokenBuilder.ids.remove(id)
-            except ValueError:
-                pass
-            raise RuntimeError(
-                f"# ID:{id} 响应解析失败，可能已失效，还剩{self.get_size()}条"
+            raise RuntimeError("二维码响应解析失败，请稍后重试") from exc
+
+        if not isinstance(data, dict):
+            logger.error("[二维码登录] 二维码响应格式异常")
+            raise RuntimeError("二维码响应格式异常，请稍后重试")
+
+        qr_url = str(data.get("QrcodeUrl") or "").strip()
+        session_id = str(data.get("ID") or id or "").strip()
+        if not qr_url or not session_id:
+            logger.error(
+                "[二维码登录] 二维码响应缺少 QrcodeUrl/ID："
+                f"{str(data)[:200]}"
             )
+            raise RuntimeError("二维码响应缺少必要字段，请稍后重试")
+
+        self.id = session_id
+        logger.debug(f"[二维码登录] 本次会话 ID={self.id}")
+        logger.debug(f"[二维码登录] 二维码链接：{qr_url}")
+        return qr_url
 
     # -------------------------------------------------------------- get token
     def get_token(self, id: Optional[str] = None) -> Optional[Token]:
         """轮询获取 Token，最多等待 5 分钟（每 4 秒请求一次）。"""
         if id is None:
             id = self.id
+        if not id:
+            logger.error("[二维码登录] 没有可用的二维码会话 ID，请先获取二维码")
+            return None
+
         cur_time = int(time.time() * 1000)
         headers = {"content-type": "application/x-www-form-urlencoded"}
         body = {
